@@ -1,14 +1,27 @@
-# Create Semantic Release Action
+# Semantic Release Creator Action
 
-A GitHub Action that handles the complete release creation process including Git tagging, version commits, next development version preparation, and GitHub release publishing.
+A GitHub Action that handles Git operations and GitHub release publishing for semantic releases. Takes pre-generated changelog content and creates complete releases with proper Git tagging and development cycle management.
 
 ## Features
 
 - ✅ **Git Operations** - Automatic commits and tagging
-- ✅ **GitHub Releases** - Creates releases with changelog
+- ✅ **GitHub Releases** - Creates releases using provided changelog content
 - ✅ **Development Cycle** - Prepares next dev version for final releases  
 - ✅ **Flexible** - Works with any project structure
 - ✅ **Safe** - Handles tag conflicts and edge cases
+
+## What This Action Does vs Doesn't Do
+
+**✅ This action handles:**
+- Git commits for version changes
+- Git tagging and pushing
+- GitHub release creation using provided content
+- Next development version preparation (for final releases)
+
+**❌ This action does NOT:**
+- Generate changelog content (use a separate changelog action first)
+- Analyze commits for version bumping (use a version bump action first)
+- Determine release versions (versions must be provided as inputs)
 
 ## Usage
 
@@ -74,6 +87,14 @@ A GitHub Action that handles the complete release creation process including Git
 1. **Creates release** - Uses the provided tag and changelog
 2. **Sets prerelease** - Marks alpha/beta as prerelease, final as stable
 3. **Returns metadata** - Provides release URL and ID for further processing
+
+## Workflow Integration
+
+This action is designed to be the **final step** in a release automation workflow:
+
+1. **Step 1**: Version bumping (e.g., `semantic-version-bump-action`)
+2. **Step 2**: Changelog generation (e.g., `johnyherangi/create-release-notes`)  
+3. **Step 3**: Release creation (this action)
 
 ## Complete Workflow Example
 
