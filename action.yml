@@ -1,5 +1,5 @@
-name: 'Create Semantic Release'
-description: 'Creates Git tags, commits version bumps, and publishes GitHub releases'
+name: 'Semantic Release Creator'
+description: 'Creates Git tags, commits version bumps, and publishes GitHub releases with development cycle support'
 branding:
   icon: 'tag'
   color: 'blue'
