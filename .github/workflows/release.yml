@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get previous tag
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+$' | head -2 | tail -1 || echo "")
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+
+          echo "Generating changelog from $PREVIOUS_TAG to ${{ github.ref_name }}..."
+
+          CHANGELOG=$(git log --pretty=format:"- %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" $PREVIOUS_TAG..${{ github.ref_name }} | head -50)
+
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="- Initial release"
+          fi
+
+          cat >> "$GITHUB_OUTPUT" << EOF
+          changelog<<CHANGELOG_EOF
+          ## What's Changed
+
+          $CHANGELOG
+
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG...${{ github.ref_name }}
+          CHANGELOG_EOF
+          EOF
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Semantic Release Creator ${{ github.ref_name }}
+          body: |
+            # 🚀 Semantic Release Creator Action ${{ github.ref_name }}
+
+            A GitHub Action for creating semantic releases with Git operations and GitHub release publishing.
+
+            ${{ steps.changelog.outputs.changelog }}
+
+            ## 📦 Usage
+
+            ```yaml
+            - name: Create release
+              uses: mherman22/semantic-release-creator-action@${{ github.ref_name }}
+              with:
+                release-tag: ${{ steps.bump.outputs.release-tag }}
+                changelog: ${{ steps.changelog.outputs.release-notes }}
+                stage-label: ${{ steps.bump.outputs.stage-label }}
+                github-token: ${{ secrets.GITHUB_TOKEN }}
+            ```
+
+            ## 🔗 Links
+
+            - 📚 [Documentation](https://github.com/mherman22/semantic-release-creator-action#readme)
+            - 🛠️ [Marketplace](https://github.com/marketplace/actions/semantic-release-creator)
+            - 🐛 [Issues](https://github.com/mherman22/semantic-release-creator-action/issues)
+
+            ## 🤝 Works Best With
+
+            - [Semantic Version Bump Action](https://github.com/mherman22/semantic-version-bump-action)
+            - [Create Release Notes Action](https://github.com/johnyherangi/create-release-notes)
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
