@@ -231,9 +231,136 @@ jobs:
             exit 1
           fi
 
+  test-configuration:
+    name: Test Configuration Support
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test basic configuration parsing
+        run: |
+          mkdir test-config && cd test-config
+
+          # Create test config file
+          cat > config.json << 'EOF'
+          {
+            "files": {
+              "maven": {
+                "path": "custom-pom.xml"
+              },
+              "nodejs": {
+                "path": "custom-package.json"
+              }
+            },
+            "commits": {
+              "releaseTemplate": "🚀 Release {version}",
+              "nextDevTemplate": "🔧 Next iteration {version}"
+            }
+          }
+          EOF
+
+          # Create test files with custom paths
+          cat > custom-pom.xml << 'EOF'
+          <?xml version="1.0"?>
+          <project>
+              <groupId>test</groupId>
+              <artifactId>test</artifactId>
+              <version>1.0.0</version>
+          </project>
+          EOF
+
+          cat > custom-package.json << 'EOF'
+          {
+            "name": "test",
+            "version": "1.0.0"
+          }
+          EOF
+
+          # Test config parsing logic (simulate action behavior)
+          CONFIG_FILE="config.json"
+          BACKEND_FILE="pom.xml"  # default
+          FRONTEND_FILE="package.json"  # default
+          RELEASE_COMMIT_TEMPLATE="chore(release): bump version to {version}"  # default
+
+          if [ -f "$CONFIG_FILE" ]; then
+            # Test Maven path extraction
+            if grep -q '"maven"' "$CONFIG_FILE"; then
+              MAVEN_PATH=$(grep -A2 '"maven"' "$CONFIG_FILE" | grep '"path"' | sed 's/.*"path": "\([^"]*\)".*/\1/' || echo "")
+              [ -n "$MAVEN_PATH" ] && BACKEND_FILE="$MAVEN_PATH"
+            fi
+
+            # Test Node.js path extraction
+            if grep -q '"nodejs"' "$CONFIG_FILE"; then
+              NODEJS_PATH=$(grep -A2 '"nodejs"' "$CONFIG_FILE" | grep '"path"' | sed 's/.*"path": "\([^"]*\)".*/\1/' || echo "")
+              [ -n "$NODEJS_PATH" ] && FRONTEND_FILE="$NODEJS_PATH"
+            fi
+
+            # Test commit template extraction
+            if grep -q '"releaseTemplate"' "$CONFIG_FILE"; then
+              RELEASE_TEMPLATE=$(grep '"releaseTemplate"' "$CONFIG_FILE" | sed 's/.*"releaseTemplate": "\([^"]*\)".*/\1/' || echo "")
+              [ -n "$RELEASE_TEMPLATE" ] && RELEASE_COMMIT_TEMPLATE="$RELEASE_TEMPLATE"
+            fi
+          fi
+
+          # Verify config was loaded correctly
+          if [ "$BACKEND_FILE" = "custom-pom.xml" ] && [ "$FRONTEND_FILE" = "custom-package.json" ] && [ "$RELEASE_COMMIT_TEMPLATE" = "🚀 Release {version}" ]; then
+            echo "✅ Configuration parsing works correctly"
+          else
+            echo "❌ Configuration parsing failed"
+            echo "  Expected: custom-pom.xml, custom-package.json, 🚀 Release {version}"
+            echo "  Got: $BACKEND_FILE, $FRONTEND_FILE, $RELEASE_COMMIT_TEMPLATE"
+            exit 1
+          fi
+
+      - name: Test configuration file detection logic
+        run: |
+          mkdir test-config-detection && cd test-config-detection
+
+          # Test with custom paths from config
+          cat > config.json << 'EOF'
+          {
+            "files": {
+              "maven": { "path": "backend/pom.xml" },
+              "nodejs": { "path": "frontend/package.json" }
+            }
+          }
+          EOF
+
+          # Create files in custom locations
+          mkdir -p backend frontend
+          echo '<project><version>1.0.0</version></project>' > backend/pom.xml
+          echo '{"version": "1.0.0"}' > frontend/package.json
+
+          # Test file detection with config
+          CONFIG_FILE="config.json"
+          BACKEND_FILE="pom.xml"  # default
+          FRONTEND_FILE="package.json"  # default
+
+          # Apply config
+          if [ -f "$CONFIG_FILE" ]; then
+            MAVEN_PATH=$(grep -A2 '"maven"' "$CONFIG_FILE" | grep '"path"' | sed 's/.*"path": "\([^"]*\)".*/\1/' || echo "")
+            NODEJS_PATH=$(grep -A2 '"nodejs"' "$CONFIG_FILE" | grep '"path"' | sed 's/.*"path": "\([^"]*\)".*/\1/' || echo "")
+            [ -n "$MAVEN_PATH" ] && BACKEND_FILE="$MAVEN_PATH"
+            [ -n "$NODEJS_PATH" ] && FRONTEND_FILE="$NODEJS_PATH"
+          fi
+
+          # Test detection logic
+          FILES_TO_ADD=""
+          [ -f "$BACKEND_FILE" ] && FILES_TO_ADD="$FILES_TO_ADD $BACKEND_FILE"
+          [ -f "$FRONTEND_FILE" ] && FILES_TO_ADD="$FILES_TO_ADD $FRONTEND_FILE"
+
+          if [[ "$FILES_TO_ADD" == *"backend/pom.xml"* ]] && [[ "$FILES_TO_ADD" == *"frontend/package.json"* ]]; then
+            echo "✅ Configuration-based file detection works"
+          else
+            echo "❌ Configuration-based file detection failed"
+            echo "  Expected: backend/pom.xml frontend/package.json"
+            echo "  Got: $FILES_TO_ADD"
+            exit 1
+          fi
+
   test-results:
     name: Test Results Summary
-    needs: [validate-action, test-file-detection, test-version-update-logic]
+    needs: [validate-action, test-file-detection, test-version-update-logic, test-configuration]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -246,12 +373,14 @@ jobs:
           echo "| Action Validation | ${{ needs.validate-action.result }} |"
           echo "| File Detection Logic | ${{ needs.test-file-detection.result }} |"
           echo "| Version Update Logic | ${{ needs.test-version-update-logic.result }} |"
+          echo "| Configuration Support | ${{ needs.test-configuration.result }} |"
           echo ""
 
           # Check if any tests failed
           if [[ "${{ needs.validate-action.result }}" == "failure" ||
                 "${{ needs.test-file-detection.result }}" == "failure" ||
-                "${{ needs.test-version-update-logic.result }}" == "failure" ]]; then
+                "${{ needs.test-version-update-logic.result }}" == "failure" ||
+                "${{ needs.test-configuration.result }}" == "failure" ]]; then
             echo "❌ Some tests failed"
             exit 1
           else

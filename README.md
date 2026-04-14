@@ -63,6 +63,19 @@ A GitHub Action that handles Git operations and GitHub release publishing for se
     github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+### With Configuration File
+
+```yaml
+- name: Create release
+  uses: mherman22/create-semantic-release-action@v1
+  with:
+    release-tag: ${{ steps.bump.outputs.release-tag }}
+    changelog: ${{ steps.changelog.outputs.release-notes }}
+    stage-label: ${{ steps.bump.outputs.stage-label }}
+    config-file: 'release-config.json'  # ✅ Use custom configuration
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
 ## Inputs
 
 | Input | Description | Required | Default |
@@ -76,6 +89,7 @@ A GitHub Action that handles Git operations and GitHub release publishing for se
 | `backend-file` | Path to Maven pom.xml file | No | `pom.xml` |
 | `frontend-file` | Path to Node.js package.json file | No | `frontend/package.json` |
 | `branch` | Branch to push changes to | No | `develop` |
+| `config-file` | Path to configuration file (JSON) | No | - |
 
 ## Outputs
 
@@ -83,6 +97,109 @@ A GitHub Action that handles Git operations and GitHub release publishing for se
 |--------|-------------|---------|
 | `release-url` | URL of the created GitHub release | `https://github.com/owner/repo/releases/tag/v1.2.3` |
 | `release-id` | ID of the created GitHub release | `123456789` |
+
+## Configuration
+
+You can customize the action's behavior using a JSON configuration file. This allows you to:
+- Define custom file paths for version files
+- Customize commit message templates
+- Support additional file types beyond Maven and Node.js
+- Configure versioning behavior
+
+### Configuration File Format
+
+Create a `config.json` file in your repository:
+
+```json
+{
+  "files": {
+    "maven": {
+      "path": "backend/pom.xml"
+    },
+    "nodejs": {
+      "path": "frontend/package.json"
+    },
+    "custom": [
+      {
+        "path": "Chart.yaml",
+        "versionPattern": "version:\\s*([^\\n]*)",
+        "updateTemplate": "version: {version}"
+      }
+    ]
+  },
+  "commits": {
+    "releaseTemplate": "🚀 Release {version}",
+    "nextDevTemplate": "🔧 Prepare next development iteration {version}"
+  },
+  "tags": {
+    "prefix": "v",
+    "annotated": true
+  },
+  "nextDev": {
+    "maven": {
+      "appendSnapshot": true
+    },
+    "nodejs": {
+      "appendSnapshot": false
+    }
+  }
+}
+```
+
+### Configuration Options
+
+| Section | Field | Description | Default |
+|---------|-------|-------------|---------|
+| `files.maven.path` | Maven POM file location | Path to pom.xml | `pom.xml` |
+| `files.nodejs.path` | Node.js package file location | Path to package.json | `frontend/package.json` |
+| `files.custom[]` | Additional version files | Array of custom file configurations | `[]` |
+| `commits.releaseTemplate` | Release commit message | Template with `{version}` placeholder | `chore(release): bump version to {version}` |
+| `commits.nextDevTemplate` | Next dev commit message | Template with `{version}` placeholder | `chore: prepare next development iteration {version}` |
+| `tags.prefix` | Tag prefix | Prefix for release tags | `` |
+| `nextDev.maven.appendSnapshot` | Maven SNAPSHOT suffix | Add `-SNAPSHOT` to Maven versions | `true` |
+| `nextDev.nodejs.appendSnapshot` | Node.js SNAPSHOT suffix | Add `-SNAPSHOT` to Node.js versions | `false` |
+
+### Example Configurations
+
+**Helm Chart Support:**
+```json
+{
+  "files": {
+    "custom": [
+      {
+        "path": "Chart.yaml",
+        "versionPattern": "version:\\s*([^\\n]*)",
+        "updateTemplate": "version: {version}"
+      }
+    ]
+  }
+}
+```
+
+**Docker Label Support:**
+```json
+{
+  "files": {
+    "custom": [
+      {
+        "path": "Dockerfile",
+        "versionPattern": "LABEL version=\"([^\"]*)\"\n",
+        "updateTemplate": "LABEL version=\"{version}\""
+      }
+    ]
+  }
+}
+```
+
+**Custom Commit Messages:**
+```json
+{
+  "commits": {
+    "releaseTemplate": "🚀 Release version {version}",
+    "nextDevTemplate": "🔧 Next iteration: {version}"
+  }
+}
+```
 
 ## Behavior
 

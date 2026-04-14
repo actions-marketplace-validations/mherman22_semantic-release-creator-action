@@ -1,0 +1,42 @@
+{
+  "files": {
+    "maven": {
+      "path": "pom.xml"
+    },
+    "nodejs": {
+      "path": "package.json"
+    },
+    "custom": [
+      {
+        "path": "Chart.yaml",
+        "versionPattern": "version:\\s*([^\\n]*)",
+        "updateTemplate": "version: {version}"
+      },
+      {
+        "path": "Dockerfile",
+        "versionPattern": "LABEL version=\"([^\"]*)\"\n",
+        "updateTemplate": "LABEL version=\"{version}\""
+      }
+    ]
+  },
+  "commits": {
+    "releaseTemplate": "chore(release): bump version to {version}",
+    "nextDevTemplate": "chore: prepare next development iteration {version}"
+  },
+  "tags": {
+    "prefix": "v",
+    "annotated": true
+  },
+  "nextDev": {
+    "maven": {
+      "appendSnapshot": true
+    },
+    "nodejs": {
+      "appendSnapshot": false
+    }
+  },
+  "branches": {
+    "main": "develop",
+    "fallback": "main"
+  }
+}
